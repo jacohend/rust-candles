@@ -1,0 +1,11 @@
+[package]
+name = "rust-candle"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cli-candlestick-chart = "0.4.1"
+reqwest = { version="0.11.13", features = ["blocking", "json"] }
+serde = { version = "1.0.149", features = ["derive"] }
