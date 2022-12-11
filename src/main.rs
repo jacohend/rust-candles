@@ -70,8 +70,6 @@ impl<'a> Widget for AnsiEscape<'a> {
 
 fn main() -> Result<(), Box<dyn Error>> {
 
-
-
     let mut stdout = std::io::stdout();
     crossterm::execute!(stdout, crossterm::terminal::EnterAlternateScreen)?;
     let mut terminal = tui::Terminal::new(tui::backend::CrosstermBackend::new(stdout))?;
@@ -109,7 +107,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         chart.set_vol_bear_color(255, 107, 153);
         chart.set_volume_pane_height(4);
         chart.set_volume_pane_enabled(true);
-        // chart.set_volume_pane_unicode_fill(true);
+
         terminal.draw(|frame| {
             let area = frame.size().inner(&tui::layout::Margin {
                 vertical: 2,
@@ -117,7 +115,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             });
             frame.render_widget(AnsiEscape(&chart.render()), area);
         })?;
+
         thread::sleep(Duration::from_millis(15000));
     }
+
     Ok(())
 }
