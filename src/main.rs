@@ -70,15 +70,18 @@ impl<'a> Widget for AnsiEscape<'a> {
 
 fn main() -> Result<(), Box<dyn Error>> {
 
-    ctrlc::set_handler(move || {
-        println!("received Ctrl+C!");
-        process::exit(0x0100);
-    }).expect("Error setting Ctrl-C handler");
 
-    crossterm::terminal::enable_raw_mode()?;
+
     let mut stdout = std::io::stdout();
     crossterm::execute!(stdout, crossterm::terminal::EnterAlternateScreen)?;
     let mut terminal = tui::Terminal::new(tui::backend::CrosstermBackend::new(stdout))?;
+
+    ctrlc::set_handler(move || {
+        let mut stdout = std::io::stdout();
+        crossterm::execute!(stdout, crossterm::terminal::LeaveAlternateScreen);
+        println!("received Ctrl+C!");
+        process::exit(0x0100);
+    }).expect("Error setting Ctrl-C handler");
 
     loop {
         let candles =
