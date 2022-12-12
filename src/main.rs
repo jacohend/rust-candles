@@ -22,16 +22,6 @@ struct BinanceKlinesItem {
     ignore: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct CoinbaseKlinesItem {
-    open_time: f64,
-    low: f64,
-    high: f64,
-    open: f64,
-    close: f64,
-    volume: f64,
-}
-
 pub struct AnsiEscape<'a>(&'a str);
 
 impl<'a> Widget for AnsiEscape<'a> {
@@ -109,34 +99,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .collect::<Vec<Candle>>();
         let mut binance_chart = make_chart(binance_candles);
 
-        let coinbase_candles =
-            reqwest::blocking::get("https://api.pro.coinbase.com/products/btc-usd/candles?granularity=15m")?
-                .json::<Vec<CoinbaseKlinesItem>>()?
-                .iter()
-                .map(|candle| {
-                    Candle::new(
-                        candle.open,
-                        candle.high,
-                        candle.low,
-                        candle.close,
-                        Some(candle.volume),
-                        Some(candle.open_time as i64),
-                    )
-                })
-                .collect::<Vec<Candle>>();
-        let mut coinbase_chart = make_chart(coinbase_candles);
-
         terminal.draw(|frame| {
             let binanceArea = frame.size().inner(&tui::layout::Margin {
                 vertical: 1,
                 horizontal: 2,
             });
             frame.render_widget(AnsiEscape(&binance_chart.render()), binanceArea);
-            /*let coinbaseArea = frame.size().inner(&tui::layout::Margin {
-                vertical: 1,
-                horizontal: 2,
-            });
-            frame.render_widget(AnsiEscape(&coinbase_chart.render()), coinbaseArea);*/
         })?;
 
         thread::sleep(Duration::from_millis(15000));
