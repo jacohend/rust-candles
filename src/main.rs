@@ -100,11 +100,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut binance_chart = make_chart(binance_candles);
 
         terminal.draw(|frame| {
-            let binanceArea = frame.size().inner(&tui::layout::Margin {
+            let binance_area = frame.size().inner(&tui::layout::Margin {
                 vertical: 1,
                 horizontal: 2,
             });
-            frame.render_widget(AnsiEscape(&binance_chart.render()), binanceArea);
+            frame.render_widget(AnsiEscape(&binance_chart.render()), binance_area);
         })?;
 
         thread::sleep(Duration::from_millis(15000));
