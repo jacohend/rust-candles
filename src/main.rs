@@ -22,6 +22,16 @@ struct BinanceKlinesItem {
     ignore: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CoinbaseKlinesItem {
+    open_time: f64,
+    low: f64,
+    high: f64,
+    open: f64,
+    close: f64,
+    volume: f64,
+}
+
 pub struct AnsiEscape<'a>(&'a str);
 
 impl<'a> Widget for AnsiEscape<'a> {
@@ -82,7 +92,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }).expect("Error setting Ctrl-C handler");
 
     loop {
-        let candles =
+        let binance_candles =
             reqwest::blocking::get("https://api.binance.us/api/v1/klines?symbol=BTCUSDT&interval=15m")?
                 .json::<Vec<BinanceKlinesItem>>()?
                 .iter()
@@ -97,27 +107,52 @@ fn main() -> Result<(), Box<dyn Error>> {
                     )
                 })
                 .collect::<Vec<Candle>>();
+        let mut binance_chart = make_chart(binance_candles);
 
-        let mut chart = Chart::new(&candles);
-
-        chart.set_name(String::from("BTC/USDT"));
-        chart.set_bull_color(1, 205, 254);
-        chart.set_bear_color(255, 107, 153);
-        chart.set_vol_bull_color(1, 205, 254);
-        chart.set_vol_bear_color(255, 107, 153);
-        chart.set_volume_pane_height(4);
-        chart.set_volume_pane_enabled(true);
+        let coinbase_candles =
+            reqwest::blocking::get("https://api.pro.coinbase.com/products/btc-usd/candles?granularity=15m")?
+                .json::<Vec<CoinbaseKlinesItem>>()?
+                .iter()
+                .map(|candle| {
+                    Candle::new(
+                        candle.open,
+                        candle.high,
+                        candle.low,
+                        candle.close,
+                        Some(candle.volume),
+                        Some(candle.open_time as i64),
+                    )
+                })
+                .collect::<Vec<Candle>>();
+        let mut coinbase_chart = make_chart(coinbase_candles);
 
         terminal.draw(|frame| {
-            let area = frame.size().inner(&tui::layout::Margin {
-                vertical: 2,
+            let binanceArea = frame.size().inner(&tui::layout::Margin {
+                vertical: 1,
                 horizontal: 2,
             });
-            frame.render_widget(AnsiEscape(&chart.render()), area);
+            frame.render_widget(AnsiEscape(&binance_chart.render()), binanceArea);
+            /*let coinbaseArea = frame.size().inner(&tui::layout::Margin {
+                vertical: 1,
+                horizontal: 2,
+            });
+            frame.render_widget(AnsiEscape(&coinbase_chart.render()), coinbaseArea);*/
         })?;
 
         thread::sleep(Duration::from_millis(15000));
     }
 
     Ok(())
+}
+
+fn make_chart(candles : Vec<Candle>) -> Chart{
+    let mut chart = Chart::new(&candles);
+    chart.set_name(String::from("BTC/USD"));
+    chart.set_bull_color(1, 205, 254);
+    chart.set_bear_color(255, 107, 153);
+    chart.set_vol_bull_color(1, 205, 254);
+    chart.set_vol_bear_color(255, 107, 153);
+    chart.set_volume_pane_height(4);
+    chart.set_volume_pane_enabled(true);
+    chart
 }
