@@ -13,6 +13,7 @@ crossterm = "0.25.0"
 unicode-width = "0.1.5"
 ansi-parser = "0.8.0"
 ctrlc = "3.2.3"
+binance = { git = "https://github.com/wisespace-io/binance-rs.git" }
 [dependencies.cli-candlestick-chart]
 git="https://github.com/flisky/cli-candlestick-chart.git"
 branch="main"

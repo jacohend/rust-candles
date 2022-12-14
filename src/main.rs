@@ -1,26 +1,18 @@
 use std::error::Error;
 use std::{process, thread, time::Duration};
 use cli_candlestick_chart::{Candle, Chart};
-use serde::{Serialize, Deserialize};
 use tui::{widgets::Widget, style::Modifier};
 use unicode_width::UnicodeWidthStr;
 use ansi_parser::AnsiParser;
+use tui::layout::{Constraint, Corner, Direction, Layout, Rect};
+use tui::widgets::{Block, Borders, List, ListItem, Row, Table, Cell};
+use binance::api::*;
+use binance::config::Config;
+use binance::market::*;
+use tui::style::{Color, Style};
+use tui::text::Spans;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct BinanceKlinesItem {
-    open_time: u64,
-    open: String,
-    high: String,
-    low: String,
-    close: String,
-    volume: String,
-    close_time: u64,
-    quote_asset_volume: String,
-    number_of_trades: u64,
-    taker_buy_base_asset_volume: String,
-    taker_buy_quote_asset_volume: String,
-    ignore: String,
-}
+const symbol: &str = "BTCUSDT";
 
 pub struct AnsiEscape<'a>(&'a str);
 
@@ -81,40 +73,78 @@ fn main() -> Result<(), Box<dyn Error>> {
         process::exit(0x0100);
     }).expect("Error setting Ctrl-C handler");
 
+    let config = Config::default().set_rest_api_endpoint("https://api.binance.us");
+    let market: Market = Binance::new_with_config(None, None, &config);
     loop {
-        let binance_candles =
-            reqwest::blocking::get("https://api.binance.us/api/v1/klines?symbol=BTCUSDT&interval=15m")?
-                .json::<Vec<BinanceKlinesItem>>()?
-                .iter()
-                .map(|candle| {
-                    Candle::new(
-                        candle.open.parse::<f64>().unwrap(),
-                        candle.high.parse::<f64>().unwrap(),
-                        candle.low.parse::<f64>().unwrap(),
-                        candle.close.parse::<f64>().unwrap(),
-                        Some(candle.volume.parse::<f64>().unwrap()),
-                        Some(candle.open_time as i64),
-                    )
-                })
-                .collect::<Vec<Candle>>();
-        let mut binance_chart = make_chart(binance_candles);
+        let kline_summary = market.get_klines(symbol, "15m", 500, None, None).unwrap();
+        let binance::model::KlineSummaries::AllKlineSummaries(klines) = kline_summary;
+        let binance_candles = klines.iter().map(|candle| {
+            Candle::new(
+                candle.open.parse::<f64>().unwrap(),
+                candle.high.parse::<f64>().unwrap(),
+                candle.low.parse::<f64>().unwrap(),
+                candle.close.parse::<f64>().unwrap(),
+                Some(candle.volume.parse::<f64>().unwrap()),
+                Some(candle.open_time as i64),
+            )
+        }).collect::<Vec<Candle>>();
+
+        let custom_depth = market.get_custom_depth(symbol, 100).unwrap();
+        let asks:  Vec<(String, String)> = custom_depth.asks.iter().map(|a| {
+            (a.price.to_string(), a.qty.to_string())
+        }).collect();
+        let bids:  Vec<(String, String)> = custom_depth.bids.iter().map(|a| {
+            (a.price.to_string(), a.qty.to_string())
+        }).collect();
 
         terminal.draw(|frame| {
-            let binance_area = frame.size().inner(&tui::layout::Margin {
-                vertical: 1,
-                horizontal: 2,
+            let area = frame.size().inner(&tui::layout::Margin {
+                vertical: 0,
+                horizontal: 0,
             });
-            frame.render_widget(AnsiEscape(&binance_chart.render()), binance_area);
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(0)
+                .constraints(
+                    [
+                        Constraint::Percentage(50),
+                        Constraint::Percentage(50),
+                    ]
+                        .as_ref(),
+                )
+                .split(area);
+            let bottom_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .margin(0)
+                .constraints(
+                    [
+                        Constraint::Percentage(50),
+                        Constraint::Percentage(50),
+                    ]
+                        .as_ref(),
+                )
+                .split(chunks[1]);
+            let mut binance_chart = make_chart(binance_candles, chunks[0]);
+            let render = binance_chart.render();
+            let top_pane = AnsiEscape(&render);
+            let bottom_pane =
+                Block::default().title("Orderbook").borders(Borders::ALL);
+            let asks_list = make_table("Asks".to_string(), asks, Color::Red);
+            let bids_list = make_table("Bids".to_string(), bids, Color::Green);
+            frame.render_widget(top_pane, area);
+            frame.render_widget(bottom_pane, chunks[1]);
+            frame.render_widget(bids_list, bottom_chunks[0]);
+            frame.render_widget(asks_list, bottom_chunks[1]);
         })?;
 
-        thread::sleep(Duration::from_millis(15000));
+        thread::sleep(Duration::from_millis(5000));
     }
 
     Ok(())
 }
 
-fn make_chart(candles : Vec<Candle>) -> Chart{
-    let mut chart = Chart::new(&candles);
+fn make_chart(candles : Vec<Candle>, area: Rect) -> Chart {
+    let mut chart = Chart::new_with_size(candles, (area.width, area.height));
     chart.set_name(String::from("BTC/USD"));
     chart.set_bull_color(1, 205, 254);
     chart.set_bear_color(255, 107, 153);
@@ -123,4 +153,33 @@ fn make_chart(candles : Vec<Candle>) -> Chart{
     chart.set_volume_pane_height(4);
     chart.set_volume_pane_enabled(true);
     chart
+}
+
+fn make_table(title: String, rows : Vec<(String, String)>, c : Color) -> Table<'static> {
+    let selected_style = Style::default().add_modifier(Modifier::REVERSED);
+    let normal_style = Style::default().bg(Color::Black);
+    let header_cells = ["Price", "Quantity"]
+        .iter()
+        .map(|h| Cell::from(*h).style(Style::default().fg(c)));
+    let header = Row::new(header_cells)
+        .style(normal_style)
+        .height(1)
+        .bottom_margin(1);
+    let rows = rows.iter().map(|item| {
+
+        let cells = vec![Cell::from(item.0.clone()), Cell::from(item.1.clone())];
+        Row::new(cells)
+    });
+    let t = Table::new(rows)
+        .header(header)
+        .block(Block::default().borders(Borders::ALL).title(Spans::from(title)))
+        .style(Style::default().fg(c))
+        .highlight_style(selected_style)
+        .highlight_symbol(">> ")
+        .widths(&[
+            Constraint::Percentage(50),
+            Constraint::Length(30),
+            Constraint::Min(10),
+        ]);
+    t
 }
