@@ -129,8 +129,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             let top_pane = AnsiEscape(&render);
             let bottom_pane =
                 Block::default().title("Orderbook").borders(Borders::ALL);
-            let asks_list = make_table("Asks".to_string(), asks, Color::Red);
-            let bids_list = make_table("Bids".to_string(), bids, Color::Green);
+            let asks_list = make_table("Asks".to_string(), asks, Color::Rgb(255, 0, 0));
+            let bids_list = make_table("Bids".to_string(), bids, Color::Rgb(0, 255, 0));
             frame.render_widget(top_pane, area);
             frame.render_widget(bottom_pane, chunks[1]);
             frame.render_widget(bids_list, bottom_chunks[0]);
@@ -146,10 +146,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn make_chart(candles : Vec<Candle>, area: Rect) -> Chart {
     let mut chart = Chart::new_with_size(candles, (area.width, area.height));
     chart.set_name(String::from("BTC/USD"));
-    chart.set_bull_color(1, 205, 254);
-    chart.set_bear_color(255, 107, 153);
-    chart.set_vol_bull_color(1, 205, 254);
-    chart.set_vol_bear_color(255, 107, 153);
+    chart.set_bull_color(0, 255, 0);
+    chart.set_bear_color(255, 0, 0);
+    chart.set_vol_bull_color(0, 255, 0);
+    chart.set_vol_bear_color(255, 0, 0);
     chart.set_volume_pane_height(4);
     chart.set_volume_pane_enabled(true);
     chart
