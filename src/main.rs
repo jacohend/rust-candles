@@ -11,6 +11,7 @@ use binance::config::Config;
 use binance::market::*;
 use tui::style::{Color, Style};
 use tui::text::Spans;
+use std::string::String;
 
 const symbol: &str = "BTCUSDT";
 
@@ -89,6 +90,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             )
         }).collect::<Vec<Candle>>();
 
+        let all_prices = market.get_all_prices().unwrap();
+        let binance::model::Prices::AllPrices(prices) = all_prices;
+        let prices: Vec<(String, String)> = prices.iter().map(|price| {
+            (price.symbol.to_string(), price.price.to_string())
+        }).collect();
+        let prices_list: Vec<Vec<(String,String)>> = prices.chunks(prices.len()/2).map(|s| s.into()).collect();
+
         let custom_depth = market.get_custom_depth(symbol, 100).unwrap();
         let asks:  Vec<(String, String)> = custom_depth.asks.iter().map(|a| {
             (a.price.to_string(), a.qty.to_string())
@@ -124,6 +132,28 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .as_ref(),
                 )
                 .split(chunks[1]);
+            let bottom_left_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .margin(0)
+                .constraints(
+                    [
+                        Constraint::Percentage(50),
+                        Constraint::Percentage(50),
+                    ]
+                        .as_ref(),
+                )
+                .split(bottom_chunks[0]);
+            let bottom_right_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .margin(0)
+                .constraints(
+                    [
+                        Constraint::Percentage(100),
+                        Constraint::Percentage(100),
+                    ]
+                        .as_ref(),
+                )
+                .split(bottom_chunks[1]);
             let mut binance_chart = make_chart(binance_candles, chunks[0]);
             let render = binance_chart.render();
             let top_pane = AnsiEscape(&render);
@@ -131,10 +161,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Block::default().title("Orderbook").borders(Borders::ALL);
             let asks_list = make_table("Asks".to_string(), asks, Color::Rgb(255, 0, 0));
             let bids_list = make_table("Bids".to_string(), bids, Color::Rgb(0, 255, 0));
+
+            let prices_1_list = make_table("Prices".to_string(), prices_list[0].clone(), Color::Blue);
+            let prices_2_list = make_table("".to_string(), prices_list[1].clone(), Color::Blue);
             frame.render_widget(top_pane, area);
             frame.render_widget(bottom_pane, chunks[1]);
-            frame.render_widget(bids_list, bottom_chunks[0]);
-            frame.render_widget(asks_list, bottom_chunks[1]);
+            frame.render_widget(bids_list, bottom_left_chunks[0]);
+            frame.render_widget(asks_list, bottom_left_chunks[1]);
+            frame.render_widget(prices_1_list, bottom_right_chunks[0]);
+            frame.render_widget(prices_2_list, bottom_right_chunks[1]);
+
         })?;
 
         thread::sleep(Duration::from_millis(5000));
