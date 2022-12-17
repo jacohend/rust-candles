@@ -148,8 +148,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .margin(0)
                 .constraints(
                     [
-                        Constraint::Percentage(100),
-                        Constraint::Percentage(100),
+                        Constraint::Percentage(50),
+                        Constraint::Percentage(50),
                     ]
                         .as_ref(),
                 )
@@ -157,15 +157,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             let mut binance_chart = make_chart(binance_candles, chunks[0]);
             let render = binance_chart.render();
             let top_pane = AnsiEscape(&render);
-            let bottom_pane =
-                Block::default().title("Orderbook").borders(Borders::ALL);
-            let asks_list = make_table("Asks".to_string(), asks, Color::Rgb(255, 0, 0));
-            let bids_list = make_table("Bids".to_string(), bids, Color::Rgb(0, 255, 0));
 
-            let prices_1_list = make_table("Prices".to_string(), prices_list[0].clone(), Color::Blue);
-            let prices_2_list = make_table("".to_string(), prices_list[1].clone(), Color::Blue);
+            let asks_list = make_table("Asks".to_string(), &["Price", "Quantity"], asks, Color::Rgb(255, 0, 0));
+            let bids_list = make_table("Bids".to_string(), &["Price", "Quantity"], bids, Color::Rgb(0, 255, 0));
+
+            let prices_1_list = make_table("Prices".to_string(), &["Symbol", "Last Price"], prices_list[0].clone(), Color::Blue);
+            let prices_2_list = make_table("".to_string(), &["Symbol", "Last Price"], prices_list[1].clone(), Color::Blue);
             frame.render_widget(top_pane, area);
-            frame.render_widget(bottom_pane, chunks[1]);
             frame.render_widget(bids_list, bottom_left_chunks[0]);
             frame.render_widget(asks_list, bottom_left_chunks[1]);
             frame.render_widget(prices_1_list, bottom_right_chunks[0]);
@@ -191,10 +189,10 @@ fn make_chart(candles : Vec<Candle>, area: Rect) -> Chart {
     chart
 }
 
-fn make_table(title: String, rows : Vec<(String, String)>, c : Color) -> Table<'static> {
+fn make_table<'a>(title: String, headers: &'a [&'a str], rows : Vec<(String, String)>, c : Color) -> Table<'a> {
     let selected_style = Style::default().add_modifier(Modifier::REVERSED);
     let normal_style = Style::default().bg(Color::Black);
-    let header_cells = ["Price", "Quantity"]
+    let header_cells = headers
         .iter()
         .map(|h| Cell::from(*h).style(Style::default().fg(c)));
     let header = Row::new(header_cells)
