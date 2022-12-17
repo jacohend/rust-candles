@@ -134,7 +134,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .split(chunks[1]);
             let bottom_left_chunks = Layout::default()
                 .direction(Direction::Horizontal)
-                .margin(0)
+                .margin(1)
                 .constraints(
                     [
                         Constraint::Percentage(50),
@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .split(bottom_chunks[0]);
             let bottom_right_chunks = Layout::default()
                 .direction(Direction::Horizontal)
-                .margin(0)
+                .margin(1)
                 .constraints(
                     [
                         Constraint::Percentage(50),
@@ -157,13 +157,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             let mut binance_chart = make_chart(binance_candles, chunks[0]);
             let render = binance_chart.render();
             let top_pane = AnsiEscape(&render);
-
+            let bottom_left_pane =
+                Block::default().title("Orderbook").borders(Borders::ALL);
+            let bottom_right_pane =
+                Block::default().title("Prices").borders(Borders::ALL);
             let asks_list = make_table("Asks".to_string(), &["Price", "Quantity"], asks, Color::Rgb(255, 0, 0));
             let bids_list = make_table("Bids".to_string(), &["Price", "Quantity"], bids, Color::Rgb(0, 255, 0));
 
-            let prices_1_list = make_table("Prices".to_string(), &["Symbol", "Last Price"], prices_list[0].clone(), Color::Blue);
+            let prices_1_list = make_table("".to_string(), &["Symbol", "Last Price"], prices_list[0].clone(), Color::Blue);
             let prices_2_list = make_table("".to_string(), &["Symbol", "Last Price"], prices_list[1].clone(), Color::Blue);
             frame.render_widget(top_pane, area);
+            frame.render_widget(bottom_left_pane, bottom_chunks[0]);
+            frame.render_widget(bottom_right_pane, bottom_chunks[1]);
             frame.render_widget(bids_list, bottom_left_chunks[0]);
             frame.render_widget(asks_list, bottom_left_chunks[1]);
             frame.render_widget(prices_1_list, bottom_right_chunks[0]);
@@ -197,8 +202,7 @@ fn make_table<'a>(title: String, headers: &'a [&'a str], rows : Vec<(String, Str
         .map(|h| Cell::from(*h).style(Style::default().fg(c)));
     let header = Row::new(header_cells)
         .style(normal_style)
-        .height(1)
-        .bottom_margin(1);
+        .height(1);
     let rows = rows.iter().map(|item| {
 
         let cells = vec![Cell::from(item.0.clone()), Cell::from(item.1.clone())];
