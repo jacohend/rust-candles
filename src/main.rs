@@ -12,8 +12,8 @@ use binance::market::*;
 use tui::style::{Color, Style};
 use tui::text::Spans;
 use std::string::String;
+use std::env;
 
-const symbol: &str = "BTCUSDT";
 
 pub struct AnsiEscape<'a>(&'a str);
 
@@ -62,7 +62,12 @@ impl<'a> Widget for AnsiEscape<'a> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-
+    let args: Vec<String> = env::args().collect();
+    let symbol = if args.len() > 1 && !args[1].is_empty() {
+        &args[1]
+    } else {
+        "BTCUSDT"
+    };
     let mut stdout = std::io::stdout();
     crossterm::execute!(stdout, crossterm::terminal::EnterAlternateScreen)?;
     let mut terminal = tui::Terminal::new(tui::backend::CrosstermBackend::new(stdout))?;
